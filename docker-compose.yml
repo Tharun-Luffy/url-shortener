@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: url-shortener-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api-service
+    restart: unless-stopped
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost/health || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: url-shortener-api
+    # Port not exposed publicly - only accessible via nginx
+    expose:
+      - "3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/urlshortener
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=urlshortener
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_TTL=3600
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - url-shortener-network
+
+  worker-service:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: url-shortener-worker
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=urlshortener
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    networks:
+      - url-shortener-network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: url-shortener-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=urlshortener
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: url-shortener-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - url-shortener-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  url-shortener-network:
+    driver: bridge
