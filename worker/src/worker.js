@@ -1,4 +1,5 @@
 const { Worker } = require('bullmq');
+const logger = require('./logger');
 require('dotenv').config();
 const { Pool } = require('pg');
 
@@ -20,7 +21,7 @@ const worker = new Worker(
   async (job) => {
     const { shortCode, ipAddress, userAgent, timestamp } = job.data;
 
-    console.log(`Processing analytics job for short code: ${shortCode}`);
+    logger.info(`Processing analytics job for short code: ${shortCode}`);
 
     try {
       // Save analytics to database
@@ -29,10 +30,10 @@ const worker = new Worker(
         [shortCode, ipAddress, userAgent, timestamp || new Date()]
       );
 
-      console.log(`Analytics saved successfully for short code: ${shortCode} (ID: ${result.rows[0].id})`);
+      logger.info(`Analytics saved successfully for short code: ${shortCode} (ID: ${result.rows[0].id})`);
       return { success: true, id: result.rows[0].id };
     } catch (error) {
-      console.error(`Error processing analytics job for ${shortCode}:`, error);
+      logger.error({ err: error }, `Error processing analytics job for ${shortCode}`);
       throw error; // Throw to trigger retry
     }
   },
@@ -51,30 +52,28 @@ const worker = new Worker(
 
 // Worker event handlers
 worker.on('completed', (job) => {
-  console.log(`Job ${job.id} completed successfully`);
+  logger.info(`Job ${job.id} completed successfully`);
 });
 
 worker.on('failed', (job, err) => {
-  console.error(`Job ${job?.id} failed:`, err.message);
-  console.error('Job data:', job?.data);
-  console.error('Error details:', err);
+  logger.error({ err, jobData: job?.data }, `Job ${job?.id} failed`);
 });
 
 worker.on('error', (err) => {
-  console.error('Worker error:', err);
+  logger.error({ err }, 'Worker error');
 });
 
 // Graceful shutdown
 const shutdown = async () => {
-  console.log('Shutting down worker...');
+  logger.info('Shutting down worker...');
   await worker.close();
   await pool.end();
-  console.log('Worker shut down gracefully');
+  logger.info('Worker shut down gracefully');
   process.exit(0);
 };
 
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
 
-console.log('Worker service started and listening for analytics jobs...');
+logger.info('Worker service started and listening for analytics jobs...');
 

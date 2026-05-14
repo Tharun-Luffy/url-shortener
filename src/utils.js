@@ -18,8 +18,14 @@ function isValidUrl(urlString) {
   }
 }
 
+// Validate custom alias format (alphanumeric and hyphens, 1-30 chars)
+function isValidAlias(alias) {
+  const aliasRegex = /^[a-zA-Z0-9-]{1,30}$/;
+  return aliasRegex.test(alias);
+}
+
 module.exports = {
   generateShortCode,
   isValidUrl,
+  isValidAlias,
 };
-

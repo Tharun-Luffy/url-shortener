@@ -1,4 +1,5 @@
 const { Queue } = require('bullmq');
+const logger = require('./logger');
 
 const redisHost = process.env.REDIS_HOST || 'redis';
 const redisPort = process.env.REDIS_PORT || 6379;
@@ -34,9 +35,9 @@ async function queueAnalytics(shortCode, ipAddress, userAgent) {
       userAgent,
       timestamp: new Date().toISOString(),
     });
-    console.log(`Queued analytics job for short code: ${shortCode}`);
+    logger.info(`Queued analytics job for short code: ${shortCode}`);
   } catch (error) {
-    console.error('Error queueing analytics job:', error);
+    logger.error({ err: error }, 'Error queueing analytics job');
     // Don't throw - queue failure shouldn't break the redirect
   }
 }
@@ -58,7 +59,7 @@ async function getQueueStats() {
       failed,
     };
   } catch (error) {
-    console.error('Error getting queue stats:', error);
+    logger.error({ err: error }, 'Error getting queue stats');
     return null;
   }
 }
@@ -67,9 +68,9 @@ async function getQueueStats() {
 async function closeQueue() {
   try {
     await analyticsQueue.close();
-    console.log('Analytics queue closed');
+    logger.info('Analytics queue closed');
   } catch (error) {
-    console.error('Error closing queue:', error);
+    logger.error({ err: error }, 'Error closing queue');
   }
 }
 

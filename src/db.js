@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const logger = require('./logger');
 
 const pool = new Pool({
     host: process.env.POSTGRES_HOST || 'postgres',
@@ -33,9 +34,9 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_analytics_short_code ON analytics(short_code);
       CREATE INDEX IF NOT EXISTS idx_analytics_accessed_at ON analytics(accessed_at);
     `);
-        console.log('Database schema initialized successfully');
+        logger.info('Database schema initialized successfully');
     } catch (error) {
-        console.error('Error initializing database:', error);
+        logger.error({ err: error }, 'Error initializing database');
         throw error;
     }
 }

@@ -1,4 +1,5 @@
 const { createClient } = require('redis');
+const logger = require('./logger');
 
 const redisHost = process.env.REDIS_HOST || 'redis';
 const redisPort = process.env.REDIS_PORT || 6379;
@@ -14,16 +15,16 @@ const client = createClient({
 
 // Handle connection errors
 client.on('error', (err) => {
-  console.error('Redis Client Error:', err);
+  logger.error({ err }, 'Redis Client Error');
 });
 
 // Connect to Redis
 async function connectRedis() {
   try {
     await client.connect();
-    console.log('Connected to Redis successfully');
+    logger.info('Connected to Redis successfully');
   } catch (error) {
-    console.error('Failed to connect to Redis:', error);
+    logger.error({ err: error }, 'Failed to connect to Redis');
     throw error;
   }
 }
@@ -35,7 +36,7 @@ async function getCachedUrl(shortCode) {
     const cachedUrl = await client.get(key);
     return cachedUrl;
   } catch (error) {
-    console.error('Redis get error:', error);
+    logger.error({ err: error }, 'Redis get error');
     return null; // Return null on error to fall back to database
   }
 }
@@ -45,9 +46,9 @@ async function cacheUrl(shortCode, originalUrl, ttl = defaultTTL) {
   try {
     const key = `url:${shortCode}`;
     await client.setEx(key, ttl, originalUrl);
-    console.log(`Cached URL for short code: ${shortCode} (TTL: ${ttl}s)`);
+    logger.info(`Cached URL for short code: ${shortCode} (TTL: ${ttl}s)`);
   } catch (error) {
-    console.error('Redis set error:', error);
+    logger.error({ err: error }, 'Redis set error');
     // Don't throw - caching failure shouldn't break the app
   }
 }
@@ -57,9 +58,9 @@ async function deleteCachedUrl(shortCode) {
   try {
     const key = `url:${shortCode}`;
     await client.del(key);
-    console.log(`Deleted cached URL for short code: ${shortCode}`);
+    logger.info(`Deleted cached URL for short code: ${shortCode}`);
   } catch (error) {
-    console.error('Redis delete error:', error);
+    logger.error({ err: error }, 'Redis delete error');
   }
 }
 
@@ -67,9 +68,9 @@ async function deleteCachedUrl(shortCode) {
 async function closeRedis() {
   try {
     await client.quit();
-    console.log('Redis connection closed');
+    logger.info('Redis connection closed');
   } catch (error) {
-    console.error('Error closing Redis connection:', error);
+    logger.error({ err: error }, 'Error closing Redis connection');
   }
 }
 
